@@ -1,0 +1,344 @@
+---
+title: "Análise de Desempenho de Vendedores"
+author: "Marcelo Pariz Júnior"
+date: "10/01/2022"
+output: 
+  prettydoc::html_pretty:
+    theme: tactile
+---
+
+```{r include=FALSE}
+
+#carregando pacotes
+
+library(dplyr)
+library(readr)
+library(readxl)
+library(tidyverse)
+library(prettydoc)
+
+```
+
+## Objetivo
+
+O objetivo deste relatório é apresentar resultados importantes para auxiliar a equipe de gestão a determinar o desempenho dos vendedores da empresa.
+
+Trata-se de uma empresa real, com resultados reais; usada como modelo. Uma empresa do ramo de representações têxteis, responsável por atender clientes em todo território nacional.
+
+Site da empresa: [TABATEX](http://www.tabatex.com.br/)
+
+```{r include=FALSE}
+
+#iniciando variáveis
+
+base_de_dados_orcamentos <- read_excel("orcamentos.xlsx")
+
+vendedores <- unique(base_de_dados_orcamentos$profissional_interno)
+itens_orcados_vendedor <- NULL
+itens_orcados_vendedor[1:length(vendedores)] <- 0
+itens_orcados_vendidos_vendedor <- NULL
+itens_orcados_vendidos_vendedor[1:length(vendedores)] <- 0
+itens_saldo_positivo <- NULL
+itens_saldo_positivo[1:length(vendedores)] <- 0
+vetor_contagem_itens_orcados_vendedor <- NULL
+vetor_contagem_itens_saldo_positivo <- NULL
+vetor_contagem_itens_vendidos <- NULL
+porcentagens_saldo_positivo <-  NULL
+porcentagens_saldo_positivo[1:length(vendedores)] <- 0
+valor_total_vendido_vendedor <- NULL
+valor_total_vendido_vendedor[1:length(vendedores)] <- 0
+vetor_calculo_total_vendido_vendedor <- NULL
+  
+clientes <- unique(base_de_dados_orcamentos$cliente)
+itens_orcados_cliente <- NULL
+itens_orcados_cliente[1:length(clientes)] <- 0
+vetor_contagem_itens_orcados_cliente <-  NULL
+
+fornecedores <- unique(base_de_dados_orcamentos$fornecedor)
+itens_orcados_fornecedor <- NULL
+itens_orcados_fornecedor[1:length(fornecedores)] <- 0 
+vetor_contagem_itens_orcados_fornecedor <- NULL
+
+Eficiencia <- NULL
+Eficiencia[1:length(vendedores)] <- 0
+
+#criando função de contagem de itens orçados
+
+contagem_itens_orcados_vendedor <- function(profissional){
+  for(y in 1:length(vendedores)){
+   if(profissional == vendedores[y]){
+     for(x in 1:length(base_de_dados_orcamentos$n_orcamento)){
+       if(base_de_dados_orcamentos[x,"profissional_interno"] == vendedores[y]){
+         itens_orcados_vendedor[y] <- itens_orcados_vendedor[y] + 1
+       }
+     }
+     return(itens_orcados_vendedor[y])
+   }
+  }
+}
+
+#Criando função de contagem de itens vendidos
+
+contagem_itens_vendidos <- function(vendedor){
+for(b in 1:length(vendedores)){
+  if(vendedores[b] == vendedor){
+    for(c in 1:length(base_de_dados_orcamentos$n_orcamento))
+    {
+      if(base_de_dados_orcamentos[c,"profissional_interno"] == vendedores[b]){
+        if(base_de_dados_orcamentos[c,"qnt_orcado"] > base_de_dados_orcamentos[c,"qnt_saldo"]){
+           itens_orcados_vendidos_vendedor[b] <- itens_orcados_vendidos_vendedor[b] + 1   
+        }
+        }
+    }
+    return(itens_orcados_vendidos_vendedor[b])
+    }
+  }
+}
+
+#calculando valor total em $ vendido por cada vendedor
+
+calculo_valor_vendido <- function(autor){
+  for (v9 in 1:length(vendedores)) {
+    if(autor == vendedores[v9]){
+      for (v10 in 1:length(base_de_dados_orcamentos$n_orcamento)) {
+        if(base_de_dados_orcamentos[v10,"profissional_interno"] == vendedores[v9]){
+          valor_total_vendido_vendedor[v9] <- base_de_dados_orcamentos[v10,"preco_unit"] + valor_total_vendido_vendedor[v9]
+        }
+      }
+      return(valor_total_vendido_vendedor[v9]) 
+    }
+  }
+}
+
+#criando função de contagem de itens que não foram vendidos, mas que tinham saldo em estoque
+
+contagem_itens_saldo_positivo <- function(colaborador){
+  for(x1 in 1:length(vendedores)){
+    if(vendedores[x1] == colaborador){
+      for(y1 in 1:length(base_de_dados_orcamentos$n_orcamento)){
+        if(base_de_dados_orcamentos[y1,"profissional_interno"] == vendedores[x1]){
+          if(base_de_dados_orcamentos[y1,"qnt_orcado"] == base_de_dados_orcamentos[y1,"qnt_saldo"]){
+           if(base_de_dados_orcamentos[y1,"saldo1"] > 0 | base_de_dados_orcamentos[y1,"saldo2"] > 0){
+             itens_saldo_positivo[x1] <- itens_saldo_positivo[x1] + 1  
+           }   
+          }
+        }
+      }
+      return(itens_saldo_positivo[x1])
+    }
+    
+  }
+}
+
+#criando a função para contagem de itens orçados por cliente
+
+contagem_itens_orcados_cliente <- function(cliente_teste){
+  for (c1 in 1:length(clientes)) {
+      if(cliente_teste == clientes[c1]) 
+      {
+        for(c2 in 1:length(base_de_dados_orcamentos$cliente)){
+          if(base_de_dados_orcamentos[c2,"cliente"] == cliente_teste){
+            itens_orcados_cliente[c1] <- itens_orcados_cliente[c1] + 1
+          }
+        }
+        return(itens_orcados_cliente[c1])
+      }
+  }
+}
+
+#criando função para contagem de itens orçados por fornecedor
+
+contagem_itens_orcados_fornecedor <- function(fornecedor){
+  for(f1 in 1:length(fornecedores)){
+    if(fornecedor == fornecedores[f1]){
+      for(f2 in 1:length(base_de_dados_orcamentos$n_orcamento)){
+        if(base_de_dados_orcamentos[f2,"fornecedor"] == fornecedor){
+          itens_orcados_fornecedor[f1] <- itens_orcados_fornecedor[f1] + 1 
+        }
+      }
+      return(itens_orcados_fornecedor[f1])
+    }
+  }
+}
+
+#Contando a quantidade de itens orçados por vendedor, quantos foram vendidos e dos que não foram vendidos quantos tinham saldo positivo em estoque
+
+for(z in 1:length(vendedores)){
+  vetor_contagem_itens_orcados_vendedor[z] <- contagem_itens_orcados_vendedor(vendedores[z])
+  vetor_contagem_itens_vendidos[z] <- contagem_itens_vendidos(vendedores[z])
+  vetor_contagem_itens_saldo_positivo[z] <- contagem_itens_saldo_positivo(vendedores[z])
+  vetor_calculo_total_vendido_vendedor[z] <- calculo_valor_vendido(vendedores[z])
+}
+
+for(x2 in 1:length(vendedores)){
+  porcentagens_saldo_positivo[x2] <- ((vetor_contagem_itens_saldo_positivo[x2]*100) / (vetor_contagem_itens_orcados_vendedor[x2] - vetor_contagem_itens_vendidos[x2]))
+  porcentagens_saldo_positivo[x2] <- round(porcentagens_saldo_positivo[x2], digits = 0)
+}
+
+#vendedor que mais orçou no mês de Junho
+
+vendedor_mais_orcou <- vendedores[match(max(vetor_contagem_itens_orcados_vendedor), vetor_contagem_itens_orcados_vendedor)]
+media_itens_orcados_dia <- vetor_contagem_itens_orcados_vendedor / 22
+vendedor_mais_vendeu <- vendedores[match(max(vetor_contagem_itens_vendidos), vetor_contagem_itens_vendidos)]
+vendedor_mais_vendeu_valor <- max(vetor_contagem_itens_vendidos)
+
+#contando a quantidade de itens orcados por cliente
+
+for(z1 in 1:length(clientes)){
+  vetor_contagem_itens_orcados_cliente[z1] <- contagem_itens_orcados_cliente(clientes[z1])
+}
+
+#cliente que mais orçou no mês de Junho
+
+cliente_mais_orcou <- clientes[match(max(vetor_contagem_itens_orcados_cliente) , vetor_contagem_itens_orcados_cliente)]
+cliente_mais_orcou_valor <- max(vetor_contagem_itens_orcados_cliente)
+
+#contando a quantidade de itens cotados por fornecedor
+
+for(f3 in 1:length(fornecedores)){
+  vetor_contagem_itens_orcados_fornecedor[f3] <- contagem_itens_orcados_fornecedor(fornecedores[f3])
+}
+
+#fornecedor mais cotado
+
+fornecedor_mais_cotado <- fornecedores[match(max(vetor_contagem_itens_orcados_fornecedor), vetor_contagem_itens_orcados_fornecedor)]
+fornecedor_mais_cotado_valor <- max(vetor_contagem_itens_orcados_fornecedor)
+
+#Calculando eficiencia dos vendedores
+
+for (v10 in 1:length(vendedores)) {
+  Eficiencia[v10] <- vetor_contagem_itens_vendidos[v10] * 100 / vetor_contagem_itens_orcados_vendedor[v10]
+  Eficiencia[v10] <- round(Eficiencia[v10], digits = 0)
+}
+
+#criando Data Frame com os dados obtidos e salvando
+
+resultados_obtidos_TCC <- data.frame(vendedores, vetor_contagem_itens_orcados_vendedor, vetor_contagem_itens_vendidos, vetor_contagem_itens_saldo_positivo, Eficiencia)
+resultados_obtidos_TCC <- rename(resultados_obtidos_TCC, Vendedor = vendedores, Itens_Orcados = vetor_contagem_itens_orcados_vendedor, Itens_Vendidos = vetor_contagem_itens_vendidos, Itens_com_Saldo_Positivo = vetor_contagem_itens_saldo_positivo)
+
+#write_excel_csv2(resultados_obtidos_TCC)
+
+#Criando tabelas úteis para exibição dos dados
+
+forns_mais_orcados <- data.frame(fornecedores,vetor_contagem_itens_orcados_fornecedor)
+forns_mais_orcados <- rename(forns_mais_orcados, Itens_Orcados = vetor_contagem_itens_orcados_fornecedor)
+
+vend_mais_orcados <- data.frame(vendedores,vetor_contagem_itens_orcados_vendedor)
+vend_mais_orcados <- rename(vend_mais_orcados, Itens_Orcados = vetor_contagem_itens_orcados_vendedor)
+
+vend_mais_venderam <- data.frame(vendedores,vetor_contagem_itens_vendidos)
+vend_mais_venderam <- rename(vend_mais_venderam, Itens_Vendidos = vetor_contagem_itens_vendidos)
+
+vend_mais_eficientes <- data.frame(vendedores,Eficiencia)
+
+itens_saldo_positivo_estoque <- data.frame(vendedores,porcentagens_saldo_positivo)
+itens_saldo_positivo_estoque <- rename(itens_saldo_positivo_estoque, Porcentagem_Saldo_Positivo = porcentagens_saldo_positivo)
+
+```
+
+## Os dados
+
+Primeiro gráfico ilustra os 10 vendedores que mais orçaram e as quantidades de itens, uma informação fundamental para tomada de decisão.
+
+
+```{r echo=FALSE, fig.align='center'}
+  
+  vend_mais_orcados %>%
+  slice_max(Itens_Orcados, n = 10) %>%
+  mutate(vendedores = forcats::fct_reorder(vendedores, Itens_Orcados)) %>%
+  ggplot() +
+  geom_col(aes(x = vendedores,y = Itens_Orcados),show.legend = FALSE) +
+  geom_label(aes(x = vendedores, y = Itens_Orcados/2, label = Itens_Orcados)) +
+  ylab("Quantidade de Itens Orçados") +
+  xlab("Vendedores") +
+  coord_flip()
+
+```
+
+
+No segundo gráfico, podemos ver os 10 vendedores que mais venderam.
+
+
+```{r echo=FALSE, fig.align='center'}
+
+  vend_mais_venderam %>%
+  slice_max(Itens_Vendidos, n = 10) %>%
+  mutate(vendedores = forcats::fct_reorder(vendedores, Itens_Vendidos)) %>%
+  ggplot() +
+  geom_col(aes(x = vendedores,y = Itens_Vendidos),show.legend = FALSE) +
+  geom_label(aes(x = vendedores, y = Itens_Vendidos/2, label = Itens_Vendidos)) +
+  ylab("Quantidade de Itens Vendidos") +
+  xlab("Vendedores") +
+  coord_flip()
+
+```
+
+
+No terceiro gráfico, podemos ver os 10 vendedores mais eficientes; comparando a quantidade de itens orçados com itens vendidos.
+
+
+```{r echo=FALSE, fig.align='center'}
+  
+  vend_mais_eficientes %>%
+  slice_max(Eficiencia, n = 10) %>%
+  mutate(vendedores = forcats::fct_reorder(vendedores, Eficiencia)) %>%
+  ggplot() +
+  geom_col(aes(x = vendedores,y = Eficiencia),show.legend = FALSE) +
+  geom_label(aes(x = vendedores, y = Eficiencia/2, label = Eficiencia)) +
+  ylab("Eficiência (%)") +
+  xlab("Vendedores") +
+  coord_flip()
+  
+```
+
+O quarto gráfico traz uma das informações mais importantes: dentre os itens que não foram vendidos, quantos possuíam saldo positivo em estoque (em porcentagem). 
+
+O maior motivo usado pelos vendedores para justificar um orçamento não finalizado, é justamente o saldo em estoque. Esse gráfico nos mostra se realmente este é um motivo plausível.
+
+```{r echo=FALSE, fig.align='center'}
+
+  itens_saldo_positivo_estoque %>%
+  slice_max(Porcentagem_Saldo_Positivo, n = 10) %>%
+  mutate(vendedores = forcats::fct_reorder(vendedores, Porcentagem_Saldo_Positivo)) %>%
+  ggplot() +
+  geom_col(aes(x = vendedores,y = Porcentagem_Saldo_Positivo),show.legend = FALSE) +
+  geom_label(aes(x = vendedores, y = Porcentagem_Saldo_Positivo/2, label = Porcentagem_Saldo_Positivo)) +
+  ylab("Itens com Saldo Positivo que não foram Vendidos (%)") +
+  xlab("Vendedores") +
+  coord_flip()
+
+```
+
+
+No quinto gráfico, podemos ver os 10 fornecedores mais cotados.
+
+
+```{r echo=FALSE, fig.align='center'}
+   
+    forns_mais_orcados %>%
+    slice_max(Itens_Orcados, n = 10) %>%
+    mutate(fornecedores = forcats::fct_reorder(fornecedores, Itens_Orcados)) %>%
+    ggplot() +
+    geom_col(aes(x = fornecedores, y = Itens_Orcados),show.legend = FALSE) +
+    geom_label(aes(x = fornecedores, y = Itens_Orcados/2, label = Itens_Orcados)) +
+    ylab("Quantidade de Itens Orçados") +
+    xlab("Fornecedores") +
+    coord_flip()
+    
+```
+
+
+## Resumo dos Dados Obtidos com a Análise
+
+A seguir uma tabela com o resumo dos dados obtidos com esta análise:
+
+Número de itens orçados por vendedor, número de itens vendidos, quantidade de itens não vendidos que possuíam saldo positivo em estoque e a eficiência em porcentagem de cada vendedor.
+
+
+```{r echo=FALSE, fig.height=10, fig.width=8}
+
+  resultados_obtidos_TCC %>% 
+  knitr::kable()
+
+```
+
